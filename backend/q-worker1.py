@@ -1,32 +1,49 @@
 #!/usr/bin/env python3
 import pika
 import json
+import datetime
 
 # configuration
 host = 'localhost'
 queue1 = 'TASK_DO'
-queue2 = 'TASK_DONE'
+queue2 = 'TASK_INFO'
+queue3 = 'TASK_DONE'
 no_ack = True
 
 # global channel variable
 channel = None
 
 
+def now():
+  now = datetime.datetime.now()
+  return now.isoformat()
+# end def now
+
+
 def callback(ch, method, properties, body):
   global channel
-  msg_obj_in = json.loads(body)
+  msg_obj_in = json.loads(body.decode('utf-8'))
   print("callback received %r" % body)
 
-  print("working on task")
+  msg_obj_out = msg_obj_in.copy()
+  msg_obj_out.update({'status': 'started', 'started': now()})
+  msg_text = json.dumps(msg_obj_out)
+  print("inform task in-progress", msg_text)
+  channel.basic_publish(exchange='', routing_key=queue2, body=msg_text)
+
+  print("working on long-running task ...")
   output = 0
 
-  if msg_obj_in['type'] == 'add':
+  if msg_obj_in['type'] == 'worker1':
     output = 123 + int(msg_obj_in['input'])
 
-  print("inform task done")
-  msg_obj_out = {'task': msg_obj_in, 'status': 'done', 'output': output}
+  print("working on long-running task ... done")
+
+  msg_obj_out = msg_obj_in.copy()
+  msg_obj_out.update({'status': 'ended', 'ended': now(), 'output': output})
   msg_text = json.dumps(msg_obj_out)
-  channel.basic_publish(exchange='', routing_key=queue2, body=msg_text)
+  print("inform task done", msg_text)
+  channel.basic_publish(exchange='', routing_key=queue3, body=msg_text)
 # end def callback
 
 

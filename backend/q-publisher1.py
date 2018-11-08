@@ -12,10 +12,10 @@ def main():
   connection = pika.BlockingConnection(host_param)
   channel = connection.channel()
   channel.queue_declare(queue)
-  msgObj = {'id': '1', 'type': 'add', 'input': '10'}
+  msgObj = {'id': '1', 'type': 'worker1', 'input': '10'}
   msgText = json.dumps(msgObj)
   channel.basic_publish(exchange='', routing_key=key, body=msgText)
-  print("sent '{}'", message_body)
+  print("sent", msgText)
   connection.close()
 # end def main
 

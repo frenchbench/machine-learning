@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { Grid, Form, Select, TextArea, Button, List } from 'semantic-ui-react';
+import { Grid, Form, Select, TextArea, Button, List, Table } from 'semantic-ui-react';
 import socketIOClient from 'socket.io-client';
 import MainLayout from './MainLayout';
 
@@ -13,6 +13,7 @@ class App extends Component {
       task_input: '',
       messages: [],
       message: '',
+      tasks: {},
     };
     this.socket = null;
   }
@@ -42,18 +43,20 @@ class App extends Component {
     this.setState({ messages });
   };
 
-  onSocketTaskInfo = (infoObj) => {
-    console.log('socket.on TASK_INFO', infoObj);
-    const messages = [...this.state.messages];
-    messages.push(Object.assign({ type: 'TASK_INFO' }, infoObj));
-    this.setState({ messages });
+  onSocketTaskInfo = (msgObj) => {
+    console.log('socket.on TASK_INFO', msgObj);
+    const taskObj = msgObj.data;
+    let tasks = {...this.state.tasks};
+    tasks[taskObj.id] = taskObj;
+    this.setState({ tasks });
   };
 
-  onSocketTaskDone = (infoObj) => {
-    console.log('socket.on TASK_DONE', infoObj);
-    const messages = [...this.state.messages];
-    messages.push(Object.assign({ type: 'TASK_DONE' }, infoObj));
-    this.setState({ messages });
+  onSocketTaskDone = (msgObj) => {
+    console.log('socket.on TASK_DONE', msgObj);
+    const taskObj = msgObj.data;
+    let tasks = {...this.state.tasks};
+    tasks[taskObj.id] = taskObj;
+    this.setState({ tasks });
   };
 
   socketSendChat = (msgText) => {
@@ -104,12 +107,11 @@ class App extends Component {
     evt.preventDefault();
     const { task_type, task_input } = this.state;
     this.socketSendTask(task_type, task_input);
-    this.setState({ task_input: '' });// reset input
+    //this.setState({ task_input: '' });// reset input?
   };
 
-  render() {
-    const { messages, message } = this.state;
-    const messageItems = messages.map((msgObj, idx) => {
+  renderMessages(messages){
+    return messages.map((msgObj, idx) => {
       const info = typeof msgObj.data === 'string' ? msgObj.data : JSON.stringify(msgObj.data);
       return (
         <List.Item key={idx}>
@@ -121,6 +123,30 @@ class App extends Component {
         </List.Item>
       );
     });
+  }
+
+  renderTasks(tasks){
+    return Object.entries(tasks).map(([taskId, taskObj], idx) => {
+      const { id, type, status, published, started, ended, input, output } = taskObj;
+      return (
+        <Table.Row key={idx}>
+          <Table.Cell>{type}</Table.Cell>
+          <Table.Cell>{id}</Table.Cell>
+          <Table.Cell>{status}</Table.Cell>
+          <Table.Cell>{published}</Table.Cell>
+          <Table.Cell>{started}</Table.Cell>
+          <Table.Cell>{ended}</Table.Cell>
+          <Table.Cell>{input}</Table.Cell>
+          <Table.Cell>{output}</Table.Cell>
+        </Table.Row>
+      );
+    });
+  }
+
+  render() {
+    const { messages, message, tasks } = this.state;
+    const messageItems = this.renderMessages(messages);
+    const taskRows = this.renderTasks(tasks);
 
     const taskOptions = [
       { key: 'chat', value: 'chat', text: 'Chat' },
@@ -146,6 +172,24 @@ class App extends Component {
                               placeholder='Please type...' onChange={this.onChangeTaskInput} />
                   <Form.Field control={Button}>Submit</Form.Field>
                 </Form>
+
+                <Table>
+                  <Table.Header>
+                    <Table.Row>
+                      <Table.HeaderCell>Type</Table.HeaderCell>
+                      <Table.HeaderCell>ID</Table.HeaderCell>
+                      <Table.HeaderCell>Status</Table.HeaderCell>
+                      <Table.HeaderCell>Published</Table.HeaderCell>
+                      <Table.HeaderCell>Started</Table.HeaderCell>
+                      <Table.HeaderCell>Ended</Table.HeaderCell>
+                      <Table.HeaderCell>Input</Table.HeaderCell>
+                      <Table.HeaderCell>Output</Table.HeaderCell>
+                    </Table.Row>
+                  </Table.Header>
+                  <Table.Body>
+                    {taskRows}
+                  </Table.Body>
+                </Table>
 
               </Grid.Column>
               <Grid.Column width={4}>

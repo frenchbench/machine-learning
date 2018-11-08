@@ -29,18 +29,21 @@ console.log('socketIo ... ready');
 
 let queueChannel = null;
 const queueName1 = 'TASK_DO';
-const queueName2 = 'TASK_DONE';
+const queueName2 = 'TASK_INFO';
+const queueName3 = 'TASK_DONE';
 
 let sockets = {};
 let tasks = {};
 let lastTaskId = 0;
 
 function socketInfo(socket){
-  return (socket && 'id' in socket ? '[socket.id: ' + socket.id + ']' : socket);
+  return (socket && (typeof socket === 'object') && ('id' in socket)
+    ? '[socket.id: ' + socket.id + ']' : socket);
 }
 
 function socketAuthor(socket){
-  return (socket && 'id' in socket ? '[socket.id: ' + socket.id + ']' : socket);
+  return (socket && (typeof socket === 'object') && ('id' in socket)
+    ? '[socket.id: ' + socket.id + ']' : socket);
 }
 
 function socketMessage(socket = null, msgData = null, type = 'CHAT'){
@@ -50,6 +53,15 @@ function socketMessage(socket = null, msgData = null, type = 'CHAT'){
     data: msgData,
     type,
   };
+}
+
+function taskInfoHandler (msgObj, channel = null) {
+  console.log('taskInfoHandler', msgObj, channel);
+  const msgObjExt = socketMessage('[worker]', msgObj);
+  if (io) {
+    console.log('io.emit TASK_INFO', msgObjExt);
+    io.emit('TASK_INFO', msgObjExt);// inform all sockets
+  }
 }
 
 function taskDoneHandler (msgObj, channel = null) {
@@ -77,8 +89,16 @@ amqp.connect('amqp://localhost', (err, conn) => {
       const msgText = msg.content.toString();
       const msgObj = JSON.parse(msgText);
       console.log('amqp.channel.consume', msgObj);
-      taskDoneHandler(msgObj, queueName2);
+      taskInfoHandler(msgObj, queueName2);
     }, { noAck: true });
+
+    ch.consume(queueName3, (msg) => {
+      const msgText = msg.content.toString();
+      const msgObj = JSON.parse(msgText);
+      console.log('amqp.channel.consume', msgObj);
+      taskDoneHandler(msgObj, queueName3);
+    }, { noAck: true });
+
   });
 
 });
@@ -115,11 +135,12 @@ io.on('connection', (socket) => {
     console.log('socket.on TASK_DO', typeof taskObj, taskObj, socketInfo(socket));
 
     // generate new task ID
-    const id = 'task-' + (++lastTaskId);// TODO: use UUID maybe
+    const id = 'task-' + String(++lastTaskId).padStart(6, '0');// '000123' TODO: use UUID maybe
     const status = 'published';
+    const published = new Date();
 
     // publish extended task object to workers
-    const taskObjExt = Object.assign({}, taskObj, { id, status });
+    const taskObjExt = Object.assign({}, taskObj, { id, status, published });
     tasks[id] = taskObjExt;// register task
 
     console.log('publisher.publish TASK_DO', taskObjExt);
@@ -127,16 +148,17 @@ io.on('connection', (socket) => {
     queueChannel.sendToQueue(queueName1, Buffer.from(JSON.stringify(taskObjExt)));
 
     // inform socket clients
-    const msgObj = socketMessage(socket, { id, status });// do not send everything back, maybe?
+    //const msgObj = socketMessage(socket, { id, status, published });// do not send everything back, maybe?
+    const msgObj = socketMessage(socket, taskObjExt);
     console.log('socket.emit TASK_INFO', msgObj);
-    io.emit('TASK_INFO', msgObj);// inform all sockets
+    io.emit('TASK_INFO', msgObj, 'TASK');// inform all sockets
   });
 
   // user wants to send a message to everyone
   socket.on('CHAT_SEND', function(msgText){
     console.log('socket.on CHAT_SEND', typeof msgText, msgText, socketInfo(socket));
     const msgObj = socketMessage(socket, msgText);
-    io.emit('CHAT_RECEIVE', msgObj); // inform all sockets
+    io.emit('CHAT_RECEIVE', msgObj, 'TASK'); // inform all sockets
   });
 
   // greet new socket
