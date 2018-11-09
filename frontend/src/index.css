@@ -11,31 +11,3 @@ body {
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
 }
-
-div.message-new {
-
-}
-div.message-new label {
-  font-weight: bold;
-}
-div.message-new input {
-  width: 99%;
-}
-div.message-new button {
-
-}
-
-div.message-list {
-  overflow-y: auto;
-  height: 300px;
-}
-div.message-list label {
-  display: block;
-  font-weight: bold;
-}
-div.message-list ul {
-
-}
-div.message-list ul li {
-
-}

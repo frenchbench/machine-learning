@@ -1,7 +1,8 @@
 import React, { Component } from 'react';
-import { Grid, Form, Select, TextArea, Button, List, Table } from 'semantic-ui-react';
+import { Grid, Form, Input, Select, TextArea, Button, List, Table, Segment } from 'semantic-ui-react';
 import socketIOClient from 'socket.io-client';
 import MainLayout from './MainLayout';
+import moment from 'moment';
 
 class App extends Component {
 
@@ -11,6 +12,7 @@ class App extends Component {
     this.state = {
       task_type: 'worker1',
       task_input: '',
+      task_options: '',
       messages: [],
       message: '',
       tasks: {},
@@ -66,10 +68,10 @@ class App extends Component {
     }
   };
 
-  socketSendTask = (type, input) => {
-    console.log('socket.emit TASK_DO', type, input);
+  socketSendTask = (type, input, options = '') => {
+    console.log('socket.emit TASK_DO', type, input, options);
     if (this.socket) {
-      this.socket.emit('TASK_DO', { type, input });// sending object
+      this.socket.emit('TASK_DO', { type, input, options });// sending object
     }
   };
 
@@ -102,23 +104,28 @@ class App extends Component {
     this.setState({ task_input: value });
   };
 
+  onChangeTaskOptions = (evt, { value }) => {
+    this.setState({ task_options: value });
+  };
+
   onSubmitTaskForm = (evt) => {
     console.log('App.onSubmitForm');
     evt.preventDefault();
-    const { task_type, task_input } = this.state;
-    this.socketSendTask(task_type, task_input);
+    const { task_type, task_input, task_options } = this.state;
+    this.socketSendTask(task_type, task_input, task_options);
     //this.setState({ task_input: '' });// reset input?
   };
 
   renderMessages(messages){
     return messages.map((msgObj, idx) => {
       const info = typeof msgObj.data === 'string' ? msgObj.data : JSON.stringify(msgObj.data);
+      const dt = moment(msgObj.time).format('HH:mm:ss');
       return (
         <List.Item key={idx}>
           <List.Icon name='github' verticalAlign='middle' />
           <List.Content>
             <List.Header as='a'>{info}</List.Header>
-            <List.Description as='a'>{msgObj.time} {msgObj.author}</List.Description>
+            <List.Description as='a'>{dt} {msgObj.author}</List.Description>
           </List.Content>
         </List.Item>
       );
@@ -128,15 +135,19 @@ class App extends Component {
   renderTasks(tasks){
     return Object.entries(tasks).map(([taskId, taskObj], idx) => {
       const { id, type, status, published, started, ended, input, output } = taskObj;
+      const inputDom = String('' + input).split('\n').map((line) => <div>{line}</div>)
+      const dt1 = published ? moment(published).format('HH:mm:ss.SSS') : '';
+      const dt2 = started ? moment(started).format('HH:mm:ss.SSS') : '';
+      const dt3 = ended ? moment(ended).format('HH:mm:ss.SSS') : '';
       return (
         <Table.Row key={idx}>
           <Table.Cell>{type}</Table.Cell>
           <Table.Cell>{id}</Table.Cell>
           <Table.Cell>{status}</Table.Cell>
-          <Table.Cell>{published}</Table.Cell>
-          <Table.Cell>{started}</Table.Cell>
-          <Table.Cell>{ended}</Table.Cell>
-          <Table.Cell>{input}</Table.Cell>
+          <Table.Cell>{dt1}</Table.Cell>
+          <Table.Cell>{dt2}</Table.Cell>
+          <Table.Cell>{dt3}</Table.Cell>
+          <Table.Cell>{inputDom}</Table.Cell>
           <Table.Cell>{output}</Table.Cell>
         </Table.Row>
       );
@@ -149,9 +160,8 @@ class App extends Component {
     const taskRows = this.renderTasks(tasks);
 
     const taskOptions = [
-      { key: 'chat', value: 'chat', text: 'Chat' },
-      { key: 'worker1', value: 'worker1', text: 'Worker 1' },
-      { key: 'worker2', value: 'worker2', text: 'Worker 2' },
+      { key: 'worker1', value: 'worker1', text: 'SUM of all numbers in text' },
+      { key: 'worker2', value: 'worker2', text: 'SUM of column A in CSV text' },
     ];
 
     return (
@@ -161,6 +171,26 @@ class App extends Component {
 
           <Grid>
             <Grid.Row>
+
+              <Grid.Column width={4}>
+
+                <Segment.Group>
+                  <Segment>
+                    Messages
+                  </Segment>
+                  <Segment>
+                    <Input onChange={this.onChangeMessage} fluid
+                           action={{icon:'send', onClick:this.onClickSend}}
+                    />
+                  </Segment>
+                  <Segment secondary>
+                    <List divided relaxed>
+                      {messageItems}
+                    </List>
+                  </Segment>
+                </Segment.Group>
+
+              </Grid.Column>
               <Grid.Column width={12}>
 
                 <Form onSubmit={this.onSubmitTaskForm} name='task-form'>
@@ -169,7 +199,9 @@ class App extends Component {
                                 placeholder='Task' onChange={this.onChangeTaskType} />
                   </Form.Group>
                   <Form.Field control={TextArea} label='Input'
-                              placeholder='Please type...' onChange={this.onChangeTaskInput} />
+                              placeholder='Please type ...' onChange={this.onChangeTaskInput} />
+                  <Form.Field control={TextArea} label='Options'
+                              placeholder='Please type ...' onChange={this.onChangeTaskOptions} />
                   <Form.Field control={Button}>Submit</Form.Field>
                 </Form>
 
@@ -192,31 +224,8 @@ class App extends Component {
                 </Table>
 
               </Grid.Column>
-              <Grid.Column width={4}>
-
-                <div className='message-new'>
-                  <label>Your message:</label>
-                  <input onChange={this.onChangeMessage} value={message} type='text' name='message' />
-                  <button onClick={this.onClickSend} type='button'>send</button>
-                </div>
-
-                <div className='message-list'>
-                  <label>Messages</label>
-
-                  <List divided relaxed>
-                    {messageItems}
-                  </List>
-                </div>
-
-              </Grid.Column>
             </Grid.Row>
           </Grid>
-
-
-
-
-
-
 
         </MainLayout>
 
