@@ -28,9 +28,9 @@ console.log('socketIo ... ready');
 
 
 let queueChannel = null;
-const queueName1 = 'TASK_DO';
-const queueName2 = 'TASK_INFO';
-const queueName3 = 'TASK_DONE';
+const queueName_DO = 'TASK_DO';
+const queueName_INFO = 'TASK_INFO';
+const queueName_DONE = 'TASK_DONE';
 
 let sockets = {};
 let tasks = {};
@@ -81,22 +81,26 @@ amqp.connect('amqp://localhost', (err, conn) => {
   console.log('amqp.connection.createChannel ...');
   conn.createChannel((err, ch) => {
     console.log('amqp.connection.createChannel ... ready');
-    ch.assertQueue(queueName1, { durable: false });
-    ch.assertQueue(queueName2, { durable: false });
+    // make sure queues are declared
+    ch.assertQueue(queueName_DO, { durable: false });
+    ch.assertQueue(queueName_INFO, { durable: false });
+    ch.assertQueue(queueName_DONE, { durable: false });
+
+    // set global variable for queue channel
     queueChannel = ch;
 
-    ch.consume(queueName2, (msg) => {
+    ch.consume(queueName_INFO, (msg) => {
       const msgText = msg.content.toString();
       const msgObj = JSON.parse(msgText);
       console.log('amqp.channel.consume', msgObj);
-      taskInfoHandler(msgObj, queueName2);
+      taskInfoHandler(msgObj, queueName_INFO);
     }, { noAck: true });
 
-    ch.consume(queueName3, (msg) => {
+    ch.consume(queueName_DONE, (msg) => {
       const msgText = msg.content.toString();
       const msgObj = JSON.parse(msgText);
       console.log('amqp.channel.consume', msgObj);
-      taskDoneHandler(msgObj, queueName3);
+      taskDoneHandler(msgObj, queueName_DONE);
     }, { noAck: true });
 
   });
@@ -145,7 +149,7 @@ io.on('connection', (socket) => {
 
     console.log('publisher.publish TASK_DO', taskObjExt);
     //publisher.publish('TASK_DO', JSON.stringify(task));
-    queueChannel.sendToQueue(queueName1, Buffer.from(JSON.stringify(taskObjExt)));
+    queueChannel.sendToQueue(queueName_DO, Buffer.from(JSON.stringify(taskObjExt)));
 
     // inform socket clients
     //const msgObj = socketMessage(socket, { id, status, published });// do not send everything back, maybe?

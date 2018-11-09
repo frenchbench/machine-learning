@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "server": "node server.js",
+    "worker": "./q-worker1.py",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",

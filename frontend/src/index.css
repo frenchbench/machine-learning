@@ -26,7 +26,8 @@ div.message-new button {
 }
 
 div.message-list {
-
+  overflow-y: auto;
+  height: 300px;
 }
 div.message-list label {
   display: block;
